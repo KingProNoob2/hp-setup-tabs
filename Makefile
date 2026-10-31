@@ -14,12 +14,18 @@ VARIANT_SpfTab-pchio.efi := 7     # 0x2771 PCH-IO Configuration
 VARIANT_SpfTab-cpu.efi   := 9     # 0x273F CPU Configuration
 VARIANT_SpfTab-sa.efi    := 8     # 0x2757 System Agent
 
-TARGETS := SpfTab-pchio.efi SpfTab-cpu.efi SpfTab-sa.efi
+# extras from the Advanced menu
+EXTRA_SpfTab-connectivity.efi := -DFORMID=0x2722
+EXTRA_SpfTab-usb.efi          := -DFORMID=0x282f
+EXTRA_SpfTab-thermal.efi      := -DFORMID=0x278c
+
+TARGETS := SpfTab-pchio.efi SpfTab-cpu.efi SpfTab-sa.efi \
+           SpfTab-connectivity.efi SpfTab-usb.efi SpfTab-thermal.efi
 
 all: $(TARGETS)
 
 %.efi: src/spftab.c
-	$(CC) $(CFLAGS) $(LDFLAGS) -DVARIANT=$(VARIANT_$@) -o $@ $<
+	$(CC) $(CFLAGS) $(LDFLAGS) $(if $(VARIANT_$@),-DVARIANT=$(VARIANT_$@)) $(EXTRA_$@) -o $@ $<
 
 dump: SpfDump.efi
 SpfDump.efi: src/spfdump.c

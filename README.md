@@ -46,6 +46,9 @@ exactly one free slot.
 | `SpfTab-pchio.efi` | **PCH-IO Configuration** (0x2771, 42 items) | SATA/RST, USB, PCIe, HD audio, SerialIO, SCS, ISH, thermal throttling, FPRR |
 | `SpfTab-cpu.efi` | **CPU Configuration** (0x273F, 41 items) | cores/HT, VT-x/VT-d, C-states, turbo, **Power Limit 1-4** |
 | `SpfTab-sa.efi` | **System Agent** (0x2757, 24 items) | memory, graphics, PCIe root ports |
+| `SpfTab-connectivity.efi` | **Connectivity Configuration** (0x2722, 112 items) | the biggest hidden page |
+| `SpfTab-usb.efi` | **USB Configuration** (0x282F, 58 items) | per-port USB / xHCI settings |
+| `SpfTab-thermal.efi` | **Thermal Configuration** (0x278C, 5 items) | thermal policy |
 | `SpfDump.efi` | *(dumper)* | writes the running AMITSE image to `\AMITSE.BIN` — for other BIOS builds |
 
 `Advanced` (0x2712) and `Chipset` (0x2713) themselves **cannot** be restored:

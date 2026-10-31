@@ -245,7 +245,9 @@ EFI_STATUS efi_main(EFI_HANDLE image, void *st)
             u8 *t = amitse + TAB_OFF;
             u8 *e = amitse + SLOT5;
             u16 want;
-#if VARIANT == 3
+#if defined(FORMID)
+            want = (u16)FORMID;                /* explicit: -DFORMID=0x2722 */
+#elif VARIANT == 3
             want = 0x2713;          /* Chipset */
 #elif VARIANT == 1
             want = 0x2718;          /* duplicate Main (cannot work: first match wins) */
