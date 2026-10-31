@@ -48,10 +48,10 @@ Main entry at `+0x6D470` to buy a second tab).
 * **Hooking the FV protocol** to catch the database read: setup never re-reads it
   at F10 — the pointer is restored from AMITSE's saved-state stack
   (`FUN_0002009c` push / `FUN_0002056c` pop, pointer at `ctx[0]`).
-* **Widening the tab limit** (`src/spftabs.c`): relocating the table into pool
-  memory, repointing the two `lea` instructions, raising the scan bound to 0xE0
-  and the node to 0x69 reports success but adds nothing — the bound took effect
-  while the repoint did not, so the builder scanned foreign entries.
+* **Widening the tab limit**: relocating the table into pool memory, repointing
+  the two `lea` instructions, raising the scan bound to 0xE0 and the node to 0x69
+  reports success but adds nothing — the bound took effect while the repoint did
+  not, so the builder scanned foreign entries.
 * **Advanced / Chipset as tabs**: those forms are absent from this build's setup
   database, so no entry can ever match them.
 

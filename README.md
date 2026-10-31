@@ -1,92 +1,96 @@
-# hp-setup-tabs
+# HP setup tabs
 
-Two small UEFI applications for **HP laptops whose F10 setup hides pages** — they
-add a page to the setup tab bar at runtime, from RAM, with no flash write and no
-signed-image problems.
+**Three tiny UEFI apps that put a hidden page on your HP laptop's F10 setup tab
+bar — at runtime, from RAM, with no flash write.**
 
-Built and tested on an HP Spectre x360 15-eb0xxx (BIOS F.23, AMI Aptio), where the
-stock tab bar is `Main | Security | Configuration | Boot Options | Exit` and the
-*Advanced* / *Chipset* pages exist in the firmware but are never linked anywhere.
+Stock HP consumer BIOSes hide the interesting pages. On an HP Spectre x360
+15-eb0xxx the tab bar is just:
 
 ```
-F9 (boot device menu) -> Boot From EFI File -> SpfTab-pchio.efi
-   "table 0x6D470 formids 2718 2719 271A 2A09 271B  slot5 0x6D510 formid 0000"
-   "wrote slot5 -> 0x2771  readback 0x2771"
-F10 -> the tab row now has a sixth tab: "PCH-IO Configuration"
+Main | Security | Configuration | Boot Options | Exit
 ```
 
-## How the tab bar is built
-
-The setup UI (AMITSE) builds the tab row from a **six-slot table in its .data**,
-each entry `0x20` bytes:
+…while the firmware contains dozens of pages (CPU, PCH-IO, System Agent, PCIe,
+NVMe, thermal, and more) that are simply never linked to a tab. Run one of these
+from the firmware's own file browser and press F10:
 
 ```
-+0x00  EFI_GUID  formset GUID   7B59104A-C00D-4158-87FF-F04D6396A915
-+0x10  UINT16    FormId of the page to show as a tab
-+0x18  UINT64    extra match key (0 = wildcard)
+PCH-IO Configuration | Main | Security | Configuration | Boot Options | Exit
 ```
 
-`FUN_000275c8` walks that table and, for every form that matches, appends one
-15-byte `EFI_IFR_REF` to a menu node allocated for **six** refs, using the form's
-own title string as the label.
+Nothing is flashed. A power cycle restores the stock tab bar.
 
-On this model the table is at **AMITSE+0x6D470** and holds five entries
-(`0x2718` Main, `0x2719` Security, `0x271A` Configuration, `0x2A09` Boot Options,
-`0x271B` Exit) — so **slot 5 at 0x6D510 is free**, and it is still inside the
-builder's `0xC0`-byte scan window. One 0x20-byte write = one extra tab.
+---
 
-`Advanced` (0x2712) and `Chipset` (0x2713) themselves **cannot** be added: those
-container forms are not in this build's setup database, so the per-form loop never
-matches them. Every page *inside* them can be, though — that is what the variants
-below do.
+## Quick start
 
-## Variants
+1. Copy the `.efi` you want to the **internal ESP** or an SD card, e.g.
+   `\EFI\SREP\TAB.EFI`.
+2. Power on → **F9** → *Boot From EFI File* → pick that file.
+   It prints the table it found and what it wrote:
+   ```
+   AMITSE 0x4EB11000
+   table 0x6D470 formids 2718 2719 271A 2A09 271B  slot5 0x6D510 formid 0000
+   wrote slot5 -> 0x2771  readback 0x2771
+   Press F10 now.
+   ```
+3. Press **F10** → the tab bar has one more page.
 
-| file | tab added | notes |
+One page per boot: the menu holds six tabs and five are already used, so there is
+exactly one free slot.
+
+## The three pages
+
+| file | adds | why you want it |
 |---|---|---|
-| `SpfTab-pchio.efi` | PCH-IO Configuration (0x2771) | 42 items, **verified working** |
-| `SpfTab-cpu.efi` | CPU Configuration (0x273F) | 41 items, incl. Power Limit 1-4 |
-| `SpfTab-sa.efi` | System Agent (0x2757) | 24 items |
-| `SpfTab-advanced.efi` | Advanced (0x2712) | only on a build whose database has it |
-| `SpfTab-chipset.efi` | Chipset (0x2713) | same |
-| `SpfTab-cpu-sa.efi` | CPU + SA | gives up the **Main** tab for the second slot |
-| `SpfTab-pchio-cpu.efi` | PCH-IO + CPU | same |
+| `SpfTab-pchio.efi` | **PCH-IO Configuration** (0x2771, 42 items) | SATA/RST, USB, PCIe, HD audio, SerialIO, SCS, ISH, thermal throttling, FPRR |
+| `SpfTab-cpu.efi` | **CPU Configuration** (0x273F, 41 items) | cores/HT, VT-x/VT-d, C-states, turbo, **Power Limit 1-4** |
+| `SpfTab-sa.efi` | **System Agent** (0x2757, 24 items) | memory, graphics, PCIe root ports |
+| `SpfDump.efi` | *(dumper)* | writes the running AMITSE image to `\AMITSE.BIN` — for other BIOS builds |
 
-Six tabs is the ceiling: the menu node holds six refs and the table has six slots.
-`SpfTab-*.efi` all byte-verify the five known FormIds before writing anything, and
-refuse to touch a slot that already looks like an entry.
+`Advanced` (0x2712) and `Chipset` (0x2713) themselves **cannot** be restored:
+those container forms are not in this build's setup database, so the setup UI's
+tab builder never matches them. The three pages above are the ones inside them
+that are worth having.
 
-`SpfDump.efi` (`make dump`) writes the **running** AMITSE image to `\AMITSE.BIN` on
-the ESP — use it if you want to re-derive the offsets for a different BIOS build.
+## How it works (short version)
+
+The setup UI builds the tab bar from a table of 0x20-byte entries
+`{formset GUID, FormId, extra}`. On this model the table sits at
+**AMITSE+0x6D470** with five entries used and **slot 5 free** at `0x6D510` —
+still inside the tab builder's `0xC0`-byte scan window. Writing one entry there
+adds one tab.
+
+Every tool first byte-verifies the five known FormIds (`2718 2719 271A 2A09 271B`)
+and refuses to write anything if they are not where they should be, so it can't
+clobber an unrelated entry on a different BIOS build.
+
+Full mechanism, the live table, and a list of every approach that *doesn't* work
+(and why) are in **[docs/AMITSE_TABS.md](docs/AMITSE_TABS.md)**.
 
 ## Build
 
 ```sh
-make            # needs x86_64-w64-mingw32-gcc, no EDK2 required
-make dump
+make          # the three tab tools   (needs x86_64-w64-mingw32-gcc)
+make dump     # the AMITSE dumper
 ```
 
-Copy the `.efi` files to `EFI/` somewhere on an internal ESP or an SD card, boot
-the firmware's file browser (F9 -> Boot From EFI File), run one, then press F10.
+No EDK2 required — plain `-nostdlib` freestanding `efi_main`.
 
-## Why the offsets can differ between machines
+## Other BIOS builds
 
-The same F.23 SoftPaq ships two complete 16 MB images, and the AMITSE build in
-them differs (`SizeOfImage` 0xDE680 vs 0xDE2E0; the tab table sits at 0x6D430 in
-one and 0x6D470 in the other). That is why the tool **verifies** the table
-contents instead of trusting a hardcoded address, and why `SpfDump.efi` exists.
+The same F.23 SoftPaq ships two different AMITSE builds (table at `0x6D430` vs
+`0x6D470`, `SizeOfImage` `0xDE680` vs `0xDE2E0`), which is why the tools verify
+instead of assuming. If yours differs, run `SpfDump.efi`, keep `\AMITSE.BIN`, and
+re-derive the table address as described at the end of `docs/AMITSE_TABS.md`.
 
 ## Caveats
 
-* RAM only — a power cycle restores the stock tab bar; nothing is flashed.
-* One extra tab per boot. The first (failed) attempt to widen the node and
-  relocate the table is kept in `src/spftabs.c` with an explanation in
-  [docs/AMITSE_TABS.md](docs/AMITSE_TABS.md).
-* Writing the wrong entry removes a tab (harmless) — it cannot brick anything,
-  the tool only ever writes inside AMITSE's `.data`.
-* `archive/` holds the earlier experiments (HII patching, `$SPF` item patching,
-  FV hooks, resident shims). They all failed; they are kept because the reasons
-  are instructive, documented in docs.
+* RAM only, one extra tab per boot, gone after a power cycle.
+* The tools only ever write inside AMITSE's `.data`; a wrong write removes a tab,
+  it cannot brick anything.
+* Verified on: HP Spectre x360 15-eb0xxx (BIOS F.23, AMI Aptio). Other HP models
+  with the same setup formset should behave the same way.
 
 ## License
 
