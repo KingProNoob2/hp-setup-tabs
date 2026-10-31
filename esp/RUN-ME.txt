@@ -1,0 +1,20 @@
+ADD A TAB TO THE HP SETUP UTILITY
+=================================
+
+Copy one .efi from the repo root to your card, e.g.
+    EFI\SREP\1-TAB.EFI
+
+  1. power on, press F9
+  2. Boot From EFI File -> your card -> EFI\SREP\1-TAB.EFI
+     it prints, for example:
+        AMITSE 0x4EB11000
+        table 0x6D470 formids 2718 2719 271A 2A09 271B  slot5 0x6D510 formid 0000
+        wrote slot5 -> 0x2771  readback 0x2771
+        Press F10 now.
+  3. press F10 -> the tab row has one more tab
+
+If it prints "tab table not where expected - nothing written", your BIOS build
+has the table somewhere else: run SpfDump.efi (make dump), send me \AMITSE.BIN
+and the offsets can be re-derived.
+
+Nothing is written to flash. A power cycle restores the stock tabs.
